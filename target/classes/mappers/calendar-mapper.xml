@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="calendarMapper">
+	<resultMap type="MemberInfo" id="MemberInfoResultMap">
+		<result property="userInfoNo" column="USERINFO_NO"/>
+	</resultMap>
+	
+	<resultMap type="Calorie" id="CalorieResultMap">
+		<result property="calorieNo" column="CALORIE_NO"></result>
+	</resultMap>
+	<resultMap type="MyCalorie" id="MyCalorieResultMap">
+		<result property="calorieNo" column="CALORIE_NO"></result>
+	</resultMap>
+	
+	<resultMap type="FoodCheckList" id="FoodCheckListResultMap">
+		<result property="checkNo" column="CHECK_NO"></result>
+		<result property="addDate" column="ADD_DATE"></result>
+		<result property="calorieNo" column="CALORIE_NO"></result>
+		<result property="userCategory" column="USER_CATEGORY"></result>
+	</resultMap>
+	
+	<resultMap type="FoodSelectedList" id="FoodSelectedListResultMap">
+		<result property="calorieNo" column="CALORIE_NO"></result>
+		<result property="userCategory" column="USER_CATEGORY"></result>
+	</resultMap>
+	<resultMap type="MyDiet" id="MyDietResultMap">
+		<result property="meal" column="MYDIET_MEAL"></result>
+		<result property="foodName" column="MYDIET_FOODNAME"></result>
+		<result property="kCal" column="MYDIET_KCAL"></result>
+		<result property="water" column="MYDIET_WATER"></result>
+		<result property="consumption" column="MYDIET_CONSUMPTION"></result>
+		<result property="date" column="MYDIET_DATE"></result>
+		<result property="carbohydrate" column="MYDIET_CARBO"></result>
+		<result property="protein" column="MYDIET_PROTEIN"></result>
+		<result property="fat" column="MYDIET_FAT"></result>
+		<result property="saccharide" column="MYDIET_SACC"></result>
+		<result property="natrium" column="MYDIET_NATRIUM"></result>
+		<result property="dailyWeight" column="DAILY_WEIGHT"></result>
+	</resultMap>
+	
+	<resultMap type="DailyCalendar" id="DailyCalendarResultMap">
+		<result property="start" column="MYDATE"></result>
+		<result property="consumption" column="MYDIET_CONSUMPTION"></result>
+		<result property="dailyWeight" column="DAILY_WEIGHT"></result>
+	</resultMap>
+	
+	
+	
+	<insert id="insertMemberInfo">
+		INSERT INTO MEMBERINFO
+		VALUES (SEQ_MEMBERINFO.NEXTVAL, #{userId}, #{gender}, #{age}, #{height}, #{weight})
+	</insert>
+	
+	<select id="selectOne" resultMap="MemberInfoResultMap">
+		SELECT * FROM MEMBERINFO
+		WHERE USERID=#{userId}
+	</select>
+	
+	<update id="updateMemberInfo">
+		UPDATE MEMBERINFO
+		SET GENDER=#{gender}, HEIGHT=#{height}, WEIGHT=#{weight}, PERIOD=#{period}, GOAL=#{goal}
+		WHERE USERID=#{userId}
+	</update>
+	
+	<insert id="insertCalorie">
+		INSERT INTO CALORIE
+		VALUES (SEQ_CALORIE.NEXTVAL, #{foodName},#{kcal},#{protein},#{carbo},#{fat},#{natrium},#{saccharide},#{userId},#{unit},#{foodAmount})
+	</insert>
+	<insert id="insertMyCalorie">
+		INSERT INTO MYCALORIE
+		VALUES (SEQ_MYCALORIE.NEXTVAL, #{foodName},#{kcal},#{protein},#{carbo},#{fat},#{natrium},#{saccharide},#{userId},#{unit},#{foodAmount})
+	</insert>
+	
+	<select id="selectCalorieList" resultMap="FoodSelectedListResultMap">
+		SELECT CA.*, B.USER_CATEGORY
+		FROM CALORIE CA
+		LEFT OUTER JOIN FOODCHECKLIST B
+		ON CA.CALORIE_NO = B.CALORIE_NO and B.USERID =#{userId} AND B.MEAL = #{meal} AND B.ADD_DATE = #{addDate} AND B.USER_CATEGORY = 'C'
+
+	</select>
+	<select id="selectMyCalorieList" resultMap="FoodSelectedListResultMap">
+		SELECT CA.*, B.USER_CATEGORY
+		FROM MYCALORIE CA
+		LEFT OUTER JOIN FOODCHECKLIST B
+		ON CA.CALORIE_NO = B.CALORIE_NO and B.USERID =#{userId} AND B.MEAL = #{meal} AND B.ADD_DATE = #{addDate} AND B.USER_CATEGORY = 'M'
+		WHERE B.USERID=#{userId}
+
+	</select>
+	
+<!-- 	<insert id="insertCalorieIntoMyDiet">  meal, date,
+		INSERT INTO MYDIET (USERID, MYDIET_MEAL, MYDIET_FOODNAME, MYDIET_KCAL, MYDIET_DATE, MYDIET_CARBO, MYDIET_PROTEIN, MYDIET_FAT,MYDIET_SACC,MYDIET_NATRIUM )
+		VALUES (#{userId},#{meal},#{foodName}, #{kcal}, #{dateStr},#{carbo},#{protein}, #{fat}, #{sacc}, #{natrium} )
+	</insert> -->
+	
+	<insert id="insertFoodCheckList">
+		INSERT INTO FOODCHECKLIST
+		VALUES (SEQ_FOODCHECKLIST.NEXTVAL, #{userId},#{addDate},#{meal}, #{calorieNo}, #{userCategory})
+	</insert>
+	
+	<select id="selectCheckFoodList" resultMap="FoodCheckListResultMap" >
+		SELECT CALORIE_NO FROM FOODCHECKLIST
+		WHERE USERID =#{userId} AND MEAL=#{meal} AND ADD_DATE=#{addDate} AND USER_CATEGORY =#{userCategory}
+	</select>
+	
+	<delete id="emptyFoodCheckList">
+		DELETE FROM FOODCHECKLIST
+		WHERE ADD_DATE=#{addDate} AND MEAL=#{meal} AND USERID=#{userId}
+	</delete>
+	 
+	 
+	 <select id="sumKcalByMeal" resultType="SumCalorie">
+	 	select ME.meal_no as mealNo, ME.meal, nvl(resultTable2.kcalSum, 0) as kcalSum
+		from MEAL ME
+		left join (
+		    select sum(resultTable.kcal) as kcalSum , resultTable.meal
+		    from (
+		        SELECT FO.CHECK_NO, FO.userid, FO.ADD_DATE, FO.MEAL, FO.calorie_no, FO.USER_CATEGORY, CA.FOODNAME, CA.KCAL
+		        FROM FOODCHECKLIST FO
+		        left join CALORIE CA
+		        on FO.calorie_no = CA.calorie_no
+		        where FO.USER_CATEGORY = 'C' and FO.add_date = #{addDate} and FO.userId=#{userId}
+		        union
+		        SELECT FO.CHECK_NO, FO.userid, FO.ADD_DATE, FO.MEAL, FO.calorie_no, FO.USER_CATEGORY, MC.FOODNAME, MC.KCAL
+		        FROM FOODCHECKLIST FO
+		        left join MYCALORIE MC
+		        on FO.calorie_no = MC.calorie_no
+		        where FO.USER_CATEGORY = 'M' and FO.add_date = #{addDate} and FO.userId=#{userId} 
+		    ) resultTable
+		    group by resultTable.meal 
+		) resultTable2
+		on ME.meal = resultTable2.meal
+		order by ME.meal_no
+	 </select>
+	 
+	 <select id="selectDietInfo" resultMap="MyDietResultMap">
+	 	SELECT * FROM MYDIET
+	 	WHERE USERID=#{userId} AND MYDIET_DATE=#{date}
+	 </select>
+	 <delete id="deleteMyDiet">
+	 	DELETE FROM MYDIET
+	 	WHERE USERID=#{userId} AND MYDIET_DATE=#{date}
+	 </delete>
+	 <insert id="insertMyDiet">
+	 	INSERT INTO MYDIET (USERID, MYDIET_WATER, MYDIET_CONSUMPTION,MYDIET_DATE,DAILY_WEIGHT)
+	 	VALUES (#{userId},#{water},#{consumption},#{date},#{dailyWeight})
+	 </insert>
+	 
+	 <select id="calendarDailyList" resultMap="DailyCalendarResultMap" >
+	 	select nvl(resultTable2.add_date, mydiet.mydiet_date) mydate , resultTable2.kcalsum, mydiet.MYDIET_CONSUMPTION, mydiet.DAILY_WEIGHT, mydiet.USERID
+			from(
+			    select resultTable.add_date, sum(resultTable.kcal) as kcalSum 
+			    from (
+			            SELECT FO.add_date, FO.CHECK_NO, FO.userid, FO.MEAL, FO.calorie_no, FO.USER_CATEGORY, CA.FOODNAME, CA.KCAL
+			            FROM FOODCHECKLIST FO
+			            left join CALORIE CA
+			            on FO.calorie_no = CA.calorie_no
+			            where FO.USER_CATEGORY = 'C' and FO.add_date like '%' || #{date} || '%' and FO.userId = #{userId}
+			            union
+			            SELECT FO.add_date, FO.CHECK_NO, FO.userid, FO.MEAL, FO.calorie_no, FO.USER_CATEGORY, MC.FOODNAME, MC.KCAL
+			            FROM FOODCHECKLIST FO
+			            left join MYCALORIE MC
+			            on FO.calorie_no = MC.calorie_no
+			            where FO.USER_CATEGORY = 'M' and FO.add_date like '%' || #{date} || '%' and FO.userId = #{userId}
+			        ) resultTable
+			    group by resultTable.add_date 
+			    ) resultTable2
+			full outer join mydiet
+			on resultTable2.add_date = mydiet.mydiet_date and mydiet.mydiet_date like '%' || #{date} || '%' and mydiet.userId = #{userId}
+			WHERE mydiet.USERID =#{userId}
+			order by mydate
+	 </select>
+</mapper>
